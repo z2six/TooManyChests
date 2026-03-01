@@ -28,7 +28,9 @@ public final class TrackerSettingsScreen extends Screen {
 
     private EditBox highlightDurationBox;
     private EditBox trackedBlocksBox;
-    private EditBox indicatorColorBox;
+    private EditBox indicatorCrosshairColorBox;
+    private EditBox indicatorLabelColorBox;
+    private EditBox chestOutlineColorBox;
 
     private int panelLeft;
     private int panelRight;
@@ -86,16 +88,40 @@ public final class TrackerSettingsScreen extends Screen {
         this.addRenderableWidget(this.trackedBlocksBox);
         y += 40;
 
-        this.indicatorColorBox = makeEditBox(
+        this.indicatorCrosshairColorBox = makeEditBox(
                 innerLeft,
                 y + 10,
                 innerWidth,
-                Component.translatable("screen.toomanychests.indicator_color"),
-                Component.translatable("screen.toomanychests.tooltip_indicator_color")
+                Component.translatable("screen.toomanychests.indicator_crosshair_color"),
+                Component.translatable("screen.toomanychests.tooltip_indicator_crosshair_color")
         );
-        this.indicatorColorBox.setFilter(value -> value.isEmpty() || value.matches("#?[0-9a-fA-F]{0,6}"));
-        this.indicatorColorBox.setValue(TrackerConfigManager.indicatorColorHex());
-        this.addRenderableWidget(this.indicatorColorBox);
+        this.indicatorCrosshairColorBox.setFilter(value -> value.isEmpty() || value.matches("#?[0-9a-fA-F]{0,6}"));
+        this.indicatorCrosshairColorBox.setValue(TrackerConfigManager.indicatorCrosshairColorHex());
+        this.addRenderableWidget(this.indicatorCrosshairColorBox);
+        y += 40;
+
+        this.indicatorLabelColorBox = makeEditBox(
+                innerLeft,
+                y + 10,
+                innerWidth,
+                Component.translatable("screen.toomanychests.indicator_label_color"),
+                Component.translatable("screen.toomanychests.tooltip_indicator_label_color")
+        );
+        this.indicatorLabelColorBox.setFilter(value -> value.isEmpty() || value.matches("#?[0-9a-fA-F]{0,6}"));
+        this.indicatorLabelColorBox.setValue(TrackerConfigManager.indicatorLabelColorHex());
+        this.addRenderableWidget(this.indicatorLabelColorBox);
+        y += 40;
+
+        this.chestOutlineColorBox = makeEditBox(
+                innerLeft,
+                y + 10,
+                innerWidth,
+                Component.translatable("screen.toomanychests.chest_outline_color"),
+                Component.translatable("screen.toomanychests.tooltip_chest_outline_color")
+        );
+        this.chestOutlineColorBox.setFilter(value -> value.isEmpty() || value.matches("#?[0-9a-fA-F]{0,6}"));
+        this.chestOutlineColorBox.setValue(TrackerConfigManager.chestOutlineColorHex());
+        this.addRenderableWidget(this.chestOutlineColorBox);
         y += 50;
 
         int buttonWidth = (innerWidth - 8) / 2;
@@ -149,7 +175,11 @@ public final class TrackerSettingsScreen extends Screen {
         y += 40;
         guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.tracked_blocks"), innerLeft, y, 0xFFD7D7D7);
         y += 40;
-        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.indicator_color"), innerLeft, y, 0xFFD7D7D7);
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.indicator_crosshair_color"), innerLeft, y, 0xFFD7D7D7);
+        y += 40;
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.indicator_label_color"), innerLeft, y, 0xFFD7D7D7);
+        y += 40;
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.chest_outline_color"), innerLeft, y, 0xFFD7D7D7);
     }
 
     private void applyChanges() {
@@ -158,11 +188,10 @@ public final class TrackerSettingsScreen extends Screen {
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
                 .collect(Collectors.toList());
-        String color = indicatorColorBox.getValue().trim();
-        if (!color.isEmpty() && !color.startsWith("#")) {
-            color = "#" + color;
-        }
-        TrackerConfigManager.updateFromScreen(stackingMode, highlightSeconds, trackedBlocks, color);
+        String crosshairColor = normalizeHexColor(indicatorCrosshairColorBox.getValue());
+        String labelColor = normalizeHexColor(indicatorLabelColorBox.getValue());
+        String chestOutlineColor = normalizeHexColor(chestOutlineColorBox.getValue());
+        TrackerConfigManager.updateFromScreen(stackingMode, highlightSeconds, trackedBlocks, crosshairColor, labelColor, chestOutlineColor);
     }
 
     private int parseIntOrDefault(String value, int fallback) {
@@ -175,6 +204,14 @@ public final class TrackerSettingsScreen extends Screen {
 
     private Component stackingButtonText() {
         return Component.translatable("screen.toomanychests.stacking_mode", stackingMode.label());
+    }
+
+    private String normalizeHexColor(String value) {
+        String color = value == null ? "" : value.trim();
+        if (!color.isEmpty() && !color.startsWith("#")) {
+            color = "#" + color;
+        }
+        return color;
     }
 
     private void drawBrandTitle(GuiGraphics guiGraphics, int centerX, int y, String suffix) {

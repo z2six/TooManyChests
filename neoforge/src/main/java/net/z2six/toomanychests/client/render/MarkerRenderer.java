@@ -47,7 +47,7 @@ public final class MarkerRenderer {
         double expand = 0.04D + animation * 0.10D;
         float outerAlpha = 0.65F + animation * 0.30F;
         float innerAlpha = 0.35F + animation * 0.35F;
-        int color = TrackerConfigManager.indicatorColorRgb();
+        int color = TrackerConfigManager.chestOutlineColorArgb(255);
         float red = ((color >> 16) & 0xFF) / 255.0F;
         float green = ((color >> 8) & 0xFF) / 255.0F;
         float blue = (color & 0xFF) / 255.0F;

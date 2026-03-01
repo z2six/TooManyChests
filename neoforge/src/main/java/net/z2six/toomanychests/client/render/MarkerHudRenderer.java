@@ -53,8 +53,8 @@ public final class MarkerHudRenderer {
         Vector3f leftVector = camera.getLeftVector();
         Vec3 right = new Vec3(-leftVector.x, -leftVector.y, -leftVector.z);
         double focal = (screenHeight / 2.0D) / Math.tan(Math.toRadians(minecraft.options.fov().get()) / 2.0D);
-        int markerColor = TrackerConfigManager.indicatorColorArgb(255);
-        int textColor = TrackerConfigManager.indicatorColorArgb(255);
+        int markerColor = TrackerConfigManager.indicatorCrosshairColorArgb(255);
+        int textColor = TrackerConfigManager.indicatorLabelColorArgb(255);
         double ringRadius = Math.max(40.0D, Math.min(screenWidth, screenHeight) * 0.5D - EDGE_MARGIN);
         List<Rect> occupiedLabels = new ArrayList<>();
 
