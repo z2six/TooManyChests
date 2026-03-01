@@ -1,9 +1,11 @@
 package net.z2six.toomanychests.client.render;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Vector3f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiComponent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -14,7 +16,6 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderGuiEvent;
 import net.z2six.toomanychests.client.config.TrackerConfigManager;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,18 +41,20 @@ public final class MarkerHudRenderer {
             return;
         }
 
-        GuiGraphics guiGraphics = event.getGuiGraphics();
-        int screenWidth = guiGraphics.guiWidth();
-        int screenHeight = guiGraphics.guiHeight();
+        PoseStack poseStack = event.getPoseStack();
+        int screenWidth = event.getWindow().getGuiScaledWidth();
+        int screenHeight = event.getWindow().getGuiScaledHeight();
         double centerX = screenWidth / 2.0D;
         double centerY = screenHeight / 2.0D;
 
         Camera camera = minecraft.gameRenderer.getMainCamera();
         Vec3 cameraPos = camera.getPosition();
-        Vec3 forward = new Vec3(camera.getLookVector());
-        Vec3 up = new Vec3(camera.getUpVector());
+        Vector3f lookVector = camera.getLookVector();
+        Vector3f upVector = camera.getUpVector();
         Vector3f leftVector = camera.getLeftVector();
-        Vec3 right = new Vec3(-leftVector.x, -leftVector.y, -leftVector.z);
+        Vec3 forward = new Vec3(lookVector.x(), lookVector.y(), lookVector.z());
+        Vec3 up = new Vec3(upVector.x(), upVector.y(), upVector.z());
+        Vec3 right = new Vec3(-leftVector.x(), -leftVector.y(), -leftVector.z());
         double focal = (screenHeight / 2.0D) / Math.tan(Math.toRadians(minecraft.options.fov().get()) / 2.0D);
         int markerColor = TrackerConfigManager.indicatorCrosshairColorArgb(255);
         int textColor = TrackerConfigManager.indicatorLabelColorArgb(255);
@@ -85,7 +88,7 @@ public final class MarkerHudRenderer {
                 double dirX = projectedX - centerX;
                 double dirY = projectedY - centerY;
                 drawOnScreenMarker(
-                        guiGraphics,
+                        poseStack,
                         (int) Math.round(projectedX),
                         (int) Math.round(projectedY),
                         distanceText,
@@ -101,7 +104,7 @@ public final class MarkerHudRenderer {
                 double offscreenDirX = behind ? camX : (projectedX - centerX);
                 double offscreenDirY = behind ? -camY : (projectedY - centerY);
                 drawOffScreenIndicator(
-                        guiGraphics,
+                        poseStack,
                         offscreenDirX,
                         offscreenDirY,
                         centerX,
@@ -119,7 +122,7 @@ public final class MarkerHudRenderer {
     }
 
     private static void drawOnScreenMarker(
-            GuiGraphics guiGraphics,
+            PoseStack poseStack,
             int x,
             int y,
             String distanceText,
@@ -131,12 +134,12 @@ public final class MarkerHudRenderer {
             double dirY,
             List<Rect> occupiedLabels
     ) {
-        guiGraphics.fill(x - 4, y - 1, x + 5, y + 2, markerColor);
-        guiGraphics.fill(x - 1, y - 4, x + 2, y + 5, markerColor);
+        GuiComponent.fill(poseStack, x - 4, y - 1, x + 5, y + 2, markerColor);
+        GuiComponent.fill(poseStack, x - 1, y - 4, x + 2, y + 5, markerColor);
 
         Font font = Minecraft.getInstance().font;
         drawClampedLabel(
-                guiGraphics,
+                poseStack,
                 font,
                 distanceText,
                 x - font.width(distanceText) / 2,
@@ -151,7 +154,7 @@ public final class MarkerHudRenderer {
     }
 
     private static void drawOffScreenIndicator(
-            GuiGraphics guiGraphics,
+            PoseStack poseStack,
             double directionX,
             double directionY,
             double centerX,
@@ -178,7 +181,7 @@ public final class MarkerHudRenderer {
 
         Font font = Minecraft.getInstance().font;
         drawClampedLabel(
-                guiGraphics,
+                poseStack,
                 font,
                 label,
                 x - font.width(label) / 2,
@@ -215,7 +218,7 @@ public final class MarkerHudRenderer {
     }
 
     private static void drawClampedLabel(
-            GuiGraphics guiGraphics,
+            PoseStack poseStack,
             Font font,
             String text,
             int idealTextX,
@@ -289,8 +292,8 @@ public final class MarkerHudRenderer {
         }
 
         occupiedLabels.add(chosenRect);
-        guiGraphics.fill(chosenRect.left, chosenRect.top, chosenRect.right, chosenRect.bottom, 0xB0000000);
-        guiGraphics.drawString(font, finalText, chosenX, chosenY, textColor);
+        GuiComponent.fill(poseStack, chosenRect.left, chosenRect.top, chosenRect.right, chosenRect.bottom, 0xB0000000);
+        font.draw(poseStack, finalText, chosenX, chosenY, textColor);
     }
 
     private static Vec3 markerAnchor(Level level, BlockPos pos) {

@@ -1,11 +1,11 @@
 package net.z2six.toomanychests.client;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.z2six.toomanychests.client.config.TrackerConfigManager;
 import net.z2six.toomanychests.client.data.ContainerStore;
 import net.z2six.toomanychests.client.data.InteractionTracker;
@@ -140,7 +140,7 @@ public final class ContainerCaptureController {
         if (minecraft.level == null) {
             return;
         }
-        String blockId = BuiltInRegistries.BLOCK.getKey(minecraft.level.getBlockState(blockPos).getBlock()).toString();
+        String blockId = ForgeRegistries.BLOCKS.getKey(minecraft.level.getBlockState(blockPos).getBlock()).toString();
         interactionTracker.recordBlock(minecraft.level, blockPos, blockId);
     }
 }

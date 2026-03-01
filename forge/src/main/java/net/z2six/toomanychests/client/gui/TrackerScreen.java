@@ -1,18 +1,16 @@
 package net.z2six.toomanychests.client.gui;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 import net.z2six.toomanychests.client.config.TrackerConfigManager;
 import net.z2six.toomanychests.client.data.AggregatedItemEntry;
 import net.z2six.toomanychests.client.data.ContainerRecord;
@@ -20,7 +18,6 @@ import net.z2six.toomanychests.client.data.ContainerStore;
 import net.z2six.toomanychests.client.data.ItemAggregator;
 import net.z2six.toomanychests.client.gui.widget.AccentButton;
 import net.z2six.toomanychests.client.render.HighlightManager;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -80,24 +77,12 @@ public final class TrackerScreen extends Screen {
         int minCountX = searchX + searchWidth + CONTROL_GAP;
         int filterX = minCountX + minCountWidth + CONTROL_GAP;
 
-        this.searchBox = makeEditBox(
-                searchX,
-                row1Y,
-                searchWidth,
-                Component.translatable("screen.toomanychests.search"),
-                Component.translatable("screen.toomanychests.tooltip_search")
-        );
+        this.searchBox = makeEditBox(searchX, row1Y, searchWidth, Component.translatable("screen.toomanychests.search"));
         this.searchBox.setResponder(value -> rebuildEntries(true));
-        this.searchBox.setHint(Component.translatable("screen.toomanychests.search_hint"));
+        this.searchBox.setSuggestion(Component.translatable("screen.toomanychests.search_hint").getString());
         this.addRenderableWidget(this.searchBox);
 
-        this.minCountBox = makeEditBox(
-                minCountX,
-                row1Y,
-                minCountWidth,
-                Component.translatable("screen.toomanychests.min_count"),
-                Component.translatable("screen.toomanychests.tooltip_min_count")
-        );
+        this.minCountBox = makeEditBox(minCountX, row1Y, minCountWidth, Component.translatable("screen.toomanychests.min_count"));
         this.minCountBox.setValue("1");
         this.minCountBox.setFilter(value -> value.isEmpty() || value.matches("\\d+"));
         this.minCountBox.setResponder(value -> rebuildEntries(true));
@@ -190,19 +175,16 @@ public final class TrackerScreen extends Screen {
         setInitialFocus(this.searchBox);
     }
 
-    private EditBox makeEditBox(int x, int y, int width, Component narration, Component tooltip) {
+    private EditBox makeEditBox(int x, int y, int width, Component narration) {
         EditBox box = new EditBox(this.font, x, y, width, CONTROL_HEIGHT, narration);
         box.setTextColor(0xFFFFFFFF);
         box.setTextColorUneditable(0xFF6A6A6A);
-        box.setTooltip(Tooltip.create(tooltip));
         return box;
     }
 
     private Button accentButton(Component label, Button.OnPress onPress, int x, int y, int width, Component tooltip) {
-        return Button.builder(label, onPress)
-                .tooltip(Tooltip.create(tooltip))
-                .bounds(x, y, width, CONTROL_HEIGHT)
-                .build(AccentButton::new);
+        Button.OnTooltip onTooltip = (button, poseStack, mouseX, mouseY) -> renderTooltip(poseStack, tooltip, mouseX, mouseY);
+        return new AccentButton(x, y, width, CONTROL_HEIGHT, label, onPress, onTooltip);
     }
 
     @Override
@@ -216,17 +198,15 @@ public final class TrackerScreen extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
         if (!isRightMouseDown()) {
             inspectedIndex = -1;
         }
 
-        for (Renderable renderable : this.renderables) {
-            renderable.render(guiGraphics, mouseX, mouseY, partialTick);
-        }
-
-        drawBrandTitle(guiGraphics, this.width / 2, 6, " Tracker");
-        renderGrid(guiGraphics, mouseX, mouseY);
+        renderGrid(poseStack, mouseX, mouseY);
+        super.render(poseStack, mouseX, mouseY, partialTick);
+        drawBrandTitle(poseStack, this.width / 2, 6, " Tracker");
+        renderEditBoxTooltips(poseStack, mouseX, mouseY);
     }
 
     @Override
@@ -270,21 +250,21 @@ public final class TrackerScreen extends Screen {
         rebuildEntries(true);
     }
 
-    private void renderGrid(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+    private void renderGrid(PoseStack poseStack, int mouseX, int mouseY) {
         int left = listLeft();
         int right = listRight();
         int top = listTop();
         int bottom = listBottom();
 
         RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        guiGraphics.fill(left, top, right, bottom, PANEL_FILL);
-        guiGraphics.fill(left - 1, top - 1, right + 1, top, PANEL_BORDER);
-        guiGraphics.fill(left - 1, bottom, right + 1, bottom + 1, PANEL_BORDER);
-        guiGraphics.fill(left - 1, top - 1, left, bottom + 1, PANEL_BORDER);
-        guiGraphics.fill(right, top - 1, right + 1, bottom + 1, PANEL_BORDER);
+        fill(poseStack, left, top, right, bottom, PANEL_FILL);
+        fill(poseStack, left - 1, top - 1, right + 1, top, PANEL_BORDER);
+        fill(poseStack, left - 1, bottom, right + 1, bottom + 1, PANEL_BORDER);
+        fill(poseStack, left - 1, top - 1, left, bottom + 1, PANEL_BORDER);
+        fill(poseStack, right, top - 1, right + 1, bottom + 1, PANEL_BORDER);
 
         if (filteredEntries.isEmpty()) {
-            guiGraphics.drawCenteredString(this.font, Component.translatable("screen.toomanychests.empty"), (left + right) / 2, top + 10, 0xFFAAAAAA);
+            drawCenteredString(poseStack, this.font, Component.translatable("screen.toomanychests.empty"), (left + right) / 2, top + 10, 0xFFAAAAAA);
             return;
         }
 
@@ -302,12 +282,12 @@ public final class TrackerScreen extends Screen {
                 int slotY = gridTop + row * GRID_SLOT_SIZE;
                 boolean hovered = mouseX >= slotX && mouseX < slotX + GRID_SLOT_SIZE && mouseY >= slotY && mouseY < slotY + GRID_SLOT_SIZE;
 
-                guiGraphics.fill(slotX, slotY, slotX + GRID_SLOT_SIZE - 1, slotY + GRID_SLOT_SIZE - 1, 0xFF111111);
+                fill(poseStack, slotX, slotY, slotX + GRID_SLOT_SIZE - 1, slotY + GRID_SLOT_SIZE - 1, 0xFF111111);
                 if (hovered) {
-                    guiGraphics.fill(slotX, slotY, slotX + GRID_SLOT_SIZE - 1, slotY + 1, ACCENT);
-                    guiGraphics.fill(slotX, slotY + GRID_SLOT_SIZE - 2, slotX + GRID_SLOT_SIZE - 1, slotY + GRID_SLOT_SIZE - 1, ACCENT);
-                    guiGraphics.fill(slotX, slotY, slotX + 1, slotY + GRID_SLOT_SIZE - 1, ACCENT);
-                    guiGraphics.fill(slotX + GRID_SLOT_SIZE - 2, slotY, slotX + GRID_SLOT_SIZE - 1, slotY + GRID_SLOT_SIZE - 1, ACCENT);
+                    fill(poseStack, slotX, slotY, slotX + GRID_SLOT_SIZE - 1, slotY + 1, ACCENT);
+                    fill(poseStack, slotX, slotY + GRID_SLOT_SIZE - 2, slotX + GRID_SLOT_SIZE - 1, slotY + GRID_SLOT_SIZE - 1, ACCENT);
+                    fill(poseStack, slotX, slotY, slotX + 1, slotY + GRID_SLOT_SIZE - 1, ACCENT);
+                    fill(poseStack, slotX + GRID_SLOT_SIZE - 2, slotY, slotX + GRID_SLOT_SIZE - 1, slotY + GRID_SLOT_SIZE - 1, ACCENT);
                 }
 
                 if (index >= filteredEntries.size()) {
@@ -317,8 +297,8 @@ public final class TrackerScreen extends Screen {
                 AggregatedItemEntry entry = filteredEntries.get(index);
                 int itemX = slotX + ICON_INSET;
                 int itemY = slotY + ICON_INSET;
-                guiGraphics.renderItem(entry.displayStack(), itemX, itemY);
-                guiGraphics.renderItemDecorations(this.font, entry.displayStack(), itemX, itemY, compactCount(entry.totalCount()));
+                this.itemRenderer.renderAndDecorateItem(entry.displayStack(), itemX, itemY);
+                this.itemRenderer.renderGuiItemDecorations(this.font, entry.displayStack(), itemX, itemY, compactCount(entry.totalCount()));
 
                 if (hovered) {
                     hoveredIndex = index;
@@ -328,14 +308,24 @@ public final class TrackerScreen extends Screen {
 
         int totalRows = totalGridRows();
         String footer = Component.translatable("screen.toomanychests.footer", filteredEntries.size(), firstVisibleGridRow + 1, Math.max(1, totalRows)).getString();
-        guiGraphics.drawString(this.font, footer, left + 6, this.footerY - 2, 0xFFD0D0D0);
+        drawString(poseStack, this.font, footer, left + 6, this.footerY - 2, 0xFFD0D0D0);
 
         if (hoveredIndex >= 0) {
-            guiGraphics.renderTooltip(this.font, filteredEntries.get(hoveredIndex).displayStack(), mouseX, mouseY);
+            renderTooltip(poseStack, filteredEntries.get(hoveredIndex).displayStack(), mouseX, mouseY);
         }
 
         if (inspectedIndex >= 0 && inspectedIndex < filteredEntries.size() && isRightMouseDown()) {
-            renderInfoTooltip(guiGraphics, mouseX, mouseY, filteredEntries.get(inspectedIndex));
+            renderInfoTooltip(poseStack, mouseX, mouseY, filteredEntries.get(inspectedIndex));
+        }
+    }
+
+    private void renderEditBoxTooltips(PoseStack poseStack, int mouseX, int mouseY) {
+        if (this.searchBox != null && this.searchBox.isMouseOver(mouseX, mouseY)) {
+            renderTooltip(poseStack, Component.translatable("screen.toomanychests.tooltip_search"), mouseX, mouseY);
+            return;
+        }
+        if (this.minCountBox != null && this.minCountBox.isMouseOver(mouseX, mouseY)) {
+            renderTooltip(poseStack, Component.translatable("screen.toomanychests.tooltip_min_count"), mouseX, mouseY);
         }
     }
 
@@ -370,7 +360,7 @@ public final class TrackerScreen extends Screen {
 
     private boolean matchesQuery(AggregatedItemEntry entry, String query) {
         String name = entry.displayStack().getHoverName().getString().toLowerCase(Locale.ROOT);
-        String itemId = BuiltInRegistries.ITEM.getKey(entry.displayStack().getItem()).toString().toLowerCase(Locale.ROOT);
+        String itemId = ForgeRegistries.ITEMS.getKey(entry.displayStack().getItem()).toString().toLowerCase(Locale.ROOT);
         return switch (filterMode) {
             case NAME_ONLY -> name.contains(query);
             case ITEM_ID_ONLY -> itemId.contains(query);
@@ -463,20 +453,20 @@ public final class TrackerScreen extends Screen {
         };
     }
 
-    private void renderInfoTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY, AggregatedItemEntry entry) {
+    private void renderInfoTooltip(PoseStack poseStack, int mouseX, int mouseY, AggregatedItemEntry entry) {
         ItemStack stack = entry.displayStack();
-        String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).toString();
+        String itemId = ForgeRegistries.ITEMS.getKey(stack.getItem()).toString();
         List<Component> lines = new ArrayList<>();
         lines.add(stack.getHoverName().copy().withStyle(style -> style.withColor(0xFC0553)));
         lines.add(Component.translatable("screen.toomanychests.info_total", compactCount(entry.totalCount())).withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("screen.toomanychests.info_stacks", entry.stackCount()).withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("screen.toomanychests.info_containers", entry.containerCount()).withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("screen.toomanychests.info_item_id", itemId).withStyle(ChatFormatting.DARK_GRAY));
-        guiGraphics.renderTooltip(this.font, lines, Optional.empty(), mouseX + 12, mouseY + 12);
+        renderTooltip(poseStack, lines, Optional.empty(), mouseX + 12, mouseY + 12);
     }
 
     private boolean isRightMouseDown() {
-        return this.minecraft != null && GLFW.glfwGetMouseButton(this.minecraft.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        return this.minecraft != null && this.minecraft.mouseHandler.isRightPressed();
     }
 
     private boolean isInsideGrid(double mouseX, double mouseY) {
@@ -565,7 +555,7 @@ public final class TrackerScreen extends Screen {
         return Component.translatable("screen.toomanychests.only_enchanted", enchantedOnly ? "On" : "Off");
     }
 
-    private void drawBrandTitle(GuiGraphics guiGraphics, int centerX, int y, String suffix) {
+    private void drawBrandTitle(PoseStack poseStack, int centerX, int y, String suffix) {
         String prefixLeft = "(";
         String prefixCore = "TMC";
         String prefixRight = ") ";
@@ -573,13 +563,13 @@ public final class TrackerScreen extends Screen {
         String full = prefixLeft + prefixCore + prefixRight + body;
 
         int x = centerX - this.font.width(full) / 2;
-        guiGraphics.drawString(this.font, prefixLeft, x, y, WHITE);
+        drawString(poseStack, this.font, prefixLeft, x, y, WHITE);
         x += this.font.width(prefixLeft);
-        guiGraphics.drawString(this.font, prefixCore, x, y, ACCENT);
+        drawString(poseStack, this.font, prefixCore, x, y, ACCENT);
         x += this.font.width(prefixCore);
-        guiGraphics.drawString(this.font, prefixRight, x, y, WHITE);
+        drawString(poseStack, this.font, prefixRight, x, y, WHITE);
         x += this.font.width(prefixRight);
-        guiGraphics.drawString(this.font, body, x, y, WHITE);
+        drawString(poseStack, this.font, body, x, y, WHITE);
     }
 
     private enum FilterMode {

@@ -1,9 +1,9 @@
 package net.z2six.toomanychests.client.data;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public record TrackedTarget(Type type, String dimensionId, BlockPos blockPos, String sourceId, String entityKey, long gameTime) {
     public enum Type {
@@ -16,7 +16,7 @@ public record TrackedTarget(Type type, String dimensionId, BlockPos blockPos, St
     }
 
     public static TrackedTarget forEntity(Level level, Entity entity, long gameTime) {
-        String source = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString();
+        String source = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType()).toString();
         return new TrackedTarget(Type.ENTITY, level.dimension().location().toString(), entity.blockPosition().immutable(), source, entity.getStringUUID(), gameTime);
     }
 }
