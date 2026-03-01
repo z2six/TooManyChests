@@ -8,7 +8,7 @@ import net.z2six.toomanychests.client.TooManyChestsClient;
 public class TooManyChests {
 
     public TooManyChests(IEventBus eventBus) {
-        if (FMLEnvironment.dist.isClient()) {
+        if (FMLEnvironment.getDist().isClient()) {
             TooManyChestsClient.init(eventBus);
         }
     }

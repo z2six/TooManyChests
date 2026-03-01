@@ -1,6 +1,5 @@
 package net.z2six.toomanychests.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -156,7 +155,6 @@ public final class TrackerSettingsScreen extends Screen {
 
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         guiGraphics.fill(panelLeft, panelTop, panelRight, panelBottom, PANEL_FILL);
         guiGraphics.fill(panelLeft - 1, panelTop - 1, panelRight + 1, panelTop, PANEL_BORDER);
         guiGraphics.fill(panelLeft - 1, panelBottom, panelRight + 1, panelBottom + 1, PANEL_BORDER);

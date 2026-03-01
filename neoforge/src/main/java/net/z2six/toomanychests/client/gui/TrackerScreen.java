@@ -1,6 +1,5 @@
 package net.z2six.toomanychests.client.gui;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -8,6 +7,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -20,8 +20,6 @@ import net.z2six.toomanychests.client.data.ContainerStore;
 import net.z2six.toomanychests.client.data.ItemAggregator;
 import net.z2six.toomanychests.client.gui.widget.AccentButton;
 import net.z2six.toomanychests.client.render.HighlightManager;
-import org.lwjgl.glfw.GLFW;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -230,30 +228,30 @@ public final class TrackerScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        int index = gridIndexAt(mouseX, mouseY);
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        int index = gridIndexAt(event.x(), event.y());
         if (index >= 0 && index < filteredEntries.size()) {
-            if (button == 0) {
+            if (event.button() == 0) {
                 highlightEntry(filteredEntries.get(index));
                 if (this.minecraft != null) {
                     this.minecraft.setScreen(null);
                 }
                 return true;
             }
-            if (button == 1) {
+            if (event.button() == 1) {
                 inspectedIndex = index;
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
-        if (button == 1) {
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (event.button() == 1) {
             inspectedIndex = -1;
         }
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(event);
     }
 
     @Override
@@ -276,7 +274,6 @@ public final class TrackerScreen extends Screen {
         int top = listTop();
         int bottom = listBottom();
 
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
         guiGraphics.fill(left, top, right, bottom, PANEL_FILL);
         guiGraphics.fill(left - 1, top - 1, right + 1, top, PANEL_BORDER);
         guiGraphics.fill(left - 1, bottom, right + 1, bottom + 1, PANEL_BORDER);
@@ -331,7 +328,7 @@ public final class TrackerScreen extends Screen {
         guiGraphics.drawString(this.font, footer, left + 6, this.footerY - 2, 0xFFD0D0D0);
 
         if (hoveredIndex >= 0) {
-            guiGraphics.renderTooltip(this.font, filteredEntries.get(hoveredIndex).displayStack(), mouseX, mouseY);
+            guiGraphics.setTooltipForNextFrame(this.font, filteredEntries.get(hoveredIndex).displayStack(), mouseX, mouseY);
         }
 
         if (inspectedIndex >= 0 && inspectedIndex < filteredEntries.size() && isRightMouseDown()) {
@@ -472,11 +469,11 @@ public final class TrackerScreen extends Screen {
         lines.add(Component.translatable("screen.toomanychests.info_stacks", entry.stackCount()).withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("screen.toomanychests.info_containers", entry.containerCount()).withStyle(ChatFormatting.GRAY));
         lines.add(Component.translatable("screen.toomanychests.info_item_id", itemId).withStyle(ChatFormatting.DARK_GRAY));
-        guiGraphics.renderTooltip(this.font, lines, Optional.empty(), mouseX + 12, mouseY + 12);
+        guiGraphics.setTooltipForNextFrame(this.font, lines, Optional.empty(), mouseX + 12, mouseY + 12);
     }
 
     private boolean isRightMouseDown() {
-        return this.minecraft != null && GLFW.glfwGetMouseButton(this.minecraft.getWindow().getWindow(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        return this.minecraft != null && this.minecraft.mouseHandler.isRightPressed();
     }
 
     private boolean isInsideGrid(double mouseX, double mouseY) {

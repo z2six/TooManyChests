@@ -5,6 +5,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
@@ -30,6 +31,7 @@ public final class TooManyChestsClient {
     private static final HighlightManager HIGHLIGHT_MANAGER = new HighlightManager();
     private static final ContainerCaptureController CAPTURE_CONTROLLER = new ContainerCaptureController(CONTAINER_STORE, INTERACTION_TRACKER);
 
+    private static final KeyMapping.Category KEY_CATEGORY = KeyMapping.Category.register(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, Constants.MOD_ID));
     private static KeyMapping openTrackerKey;
 
     private TooManyChestsClient() {
@@ -50,7 +52,7 @@ public final class TooManyChestsClient {
     }
 
     private static void registerKeyMapping(RegisterKeyMappingsEvent event) {
-        openTrackerKey = new KeyMapping("key.toomanychests.open_tracker", InputConstants.UNKNOWN.getValue(), "key.categories.toomanychests");
+        openTrackerKey = new KeyMapping("key.toomanychests.open_tracker", InputConstants.UNKNOWN.getValue(), KEY_CATEGORY);
         event.register(openTrackerKey);
     }
 
@@ -84,7 +86,7 @@ public final class TooManyChestsClient {
         }
     }
 
-    private static void onRenderLevelStage(RenderLevelStageEvent event) {
+    private static void onRenderLevelStage(RenderLevelStageEvent.AfterTranslucentBlocks event) {
         MarkerRenderer.render(event, HIGHLIGHT_MANAGER);
     }
 

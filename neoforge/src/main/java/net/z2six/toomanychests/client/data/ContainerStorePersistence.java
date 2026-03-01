@@ -5,7 +5,9 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.fml.loading.FMLPaths;
 import net.z2six.toomanychests.Constants;
@@ -66,24 +68,28 @@ public final class ContainerStorePersistence {
 
         try {
             CompoundTag root = NbtIo.readCompressed(DATA_PATH, NbtAccounter.unlimitedHeap());
-            ListTag list = root.getList("containers", Tag.TAG_COMPOUND);
+            RegistryOps<Tag> registryOps = minecraft.level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+            ListTag list = root.getListOrEmpty("containers");
             List<ContainerRecord> records = new ArrayList<>(list.size());
             for (int i = 0; i < list.size(); i++) {
-                CompoundTag entry = list.getCompound(i);
-                String id = entry.getString("id");
-                String dimensionId = entry.getString("dimension");
-                int x = entry.getInt("x");
-                int y = entry.getInt("y");
-                int z = entry.getInt("z");
-                String sourceId = entry.getString("source");
-                String title = entry.getString("title");
-                long updated = entry.getLong("updated");
+                CompoundTag entry = list.getCompoundOrEmpty(i);
+                String id = entry.getStringOr("id", "");
+                if (id.isEmpty()) {
+                    continue;
+                }
+                String dimensionId = entry.getStringOr("dimension", "unknown");
+                int x = entry.getIntOr("x", 0);
+                int y = entry.getIntOr("y", 0);
+                int z = entry.getIntOr("z", 0);
+                String sourceId = entry.getStringOr("source", "unknown");
+                String title = entry.getStringOr("title", "");
+                long updated = entry.getLongOr("updated", 0L);
 
-                ListTag stacksTag = entry.getList("stacks", Tag.TAG_COMPOUND);
+                ListTag stacksTag = entry.getListOrEmpty("stacks");
                 List<ItemStack> stacks = new ArrayList<>(stacksTag.size());
                 for (int stackIndex = 0; stackIndex < stacksTag.size(); stackIndex++) {
-                    CompoundTag stackTag = stacksTag.getCompound(stackIndex);
-                    ItemStack stack = ItemStack.parseOptional(minecraft.level.registryAccess(), stackTag);
+                    CompoundTag stackTag = stacksTag.getCompoundOrEmpty(stackIndex);
+                    ItemStack stack = ItemStack.CODEC.parse(registryOps, stackTag).result().orElse(ItemStack.EMPTY);
                     if (!stack.isEmpty()) {
                         stacks.add(stack);
                     }
@@ -100,6 +106,7 @@ public final class ContainerStorePersistence {
 
     private void save(Minecraft minecraft, ContainerStore store) {
         List<ContainerRecord> records = store.snapshot();
+        RegistryOps<Tag> registryOps = minecraft.level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
 
         CompoundTag root = new CompoundTag();
         ListTag list = new ListTag();
@@ -116,7 +123,7 @@ public final class ContainerStorePersistence {
 
             ListTag stacksTag = new ListTag();
             for (ItemStack stack : record.stacks()) {
-                Tag encoded = stack.saveOptional(minecraft.level.registryAccess());
+                Tag encoded = ItemStack.CODEC.encodeStart(registryOps, stack).result().orElse(null);
                 if (encoded instanceof CompoundTag encodedTag && !encodedTag.isEmpty()) {
                     stacksTag.add(encodedTag);
                 }

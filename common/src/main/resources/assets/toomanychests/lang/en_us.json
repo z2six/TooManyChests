@@ -1,5 +1,6 @@
 {
   "key.categories.toomanychests": "TooManyChests",
+  "key.category.toomanychests.toomanychests": "TooManyChests",
   "key.toomanychests.open_tracker": "Open Tracked Items",
   "screen.toomanychests.title": "TooManyChests Tracker",
   "screen.toomanychests.settings_title": "TooManyChests Settings",

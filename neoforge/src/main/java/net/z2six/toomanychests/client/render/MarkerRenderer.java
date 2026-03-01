@@ -4,9 +4,9 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.ShapeRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -25,7 +25,7 @@ public final class MarkerRenderer {
     }
 
     public static void render(RenderLevelStageEvent event, HighlightManager highlightManager) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+        if (!(event instanceof RenderLevelStageEvent.AfterTranslucentBlocks)) {
             return;
         }
 
@@ -40,10 +40,10 @@ public final class MarkerRenderer {
         }
 
         PoseStack poseStack = event.getPoseStack();
-        Vec3 cameraPos = event.getCamera().getPosition();
+        Vec3 cameraPos = minecraft.gameRenderer.getMainCamera().getPosition();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
 
-        float animation = 0.5F + 0.5F * Mth.sin((minecraft.level.getGameTime() + event.getPartialTick().getGameTimeDeltaTicks()) * 0.2F);
+        float animation = 0.5F + 0.5F * Mth.sin((minecraft.level.getGameTime() + minecraft.getDeltaTracker().getGameTimeDeltaTicks()) * 0.2F);
         double expand = 0.04D + animation * 0.10D;
         float outerAlpha = 0.65F + animation * 0.30F;
         float innerAlpha = 0.35F + animation * 0.35F;
@@ -51,10 +51,6 @@ public final class MarkerRenderer {
         float red = ((color >> 16) & 0xFF) / 255.0F;
         float green = ((color >> 8) & 0xFF) / 255.0F;
         float blue = (color & 0xFF) / 255.0F;
-
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.disableDepthTest();
         RenderSystem.lineWidth(2.0F);
 
         poseStack.pushPose();
@@ -69,9 +65,6 @@ public final class MarkerRenderer {
 
         bufferSource.endBatch(RenderType.lines());
         RenderSystem.lineWidth(1.0F);
-
-        RenderSystem.enableDepthTest();
-        RenderSystem.disableBlend();
     }
 
     private static void drawMarker(
@@ -93,11 +86,11 @@ public final class MarkerRenderer {
         double maxX = bounds.maxX() + expand;
         double maxY = pos.getY() + 1.0D + expand;
         double maxZ = bounds.maxZ() + expand;
-        LevelRenderer.renderLineBox(poseStack, lineConsumer, minX, minY, minZ, maxX, maxY, maxZ, red, green, blue, outerAlpha);
+        ShapeRenderer.renderLineBox(poseStack.last(), lineConsumer, minX, minY, minZ, maxX, maxY, maxZ, red, green, blue, outerAlpha);
 
         double inset = 0.08D;
-        LevelRenderer.renderLineBox(
-                poseStack,
+        ShapeRenderer.renderLineBox(
+                poseStack.last(),
                 lineConsumer,
                 minX + inset,
                 minY + inset,
