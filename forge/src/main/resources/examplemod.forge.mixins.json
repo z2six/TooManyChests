@@ -1,11 +1,11 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.example.examplemod.mixin",
+  "package": "com.example.toomanychests.mixin",
   "compatibilityLevel": "JAVA_18",
   "mixins": [],
   "client": [
-    "MixinTitleScreen"
+    "net.z2six.toomanychests.mixin.MixinTitleScreen"
   ],
   "server": [],
   "injectors": {

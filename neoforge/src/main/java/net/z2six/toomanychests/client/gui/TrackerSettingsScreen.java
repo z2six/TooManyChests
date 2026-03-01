@@ -1,0 +1,196 @@
+package net.z2six.toomanychests.client.gui;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Renderable;
+import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
+import net.z2six.toomanychests.client.config.StackingMode;
+import net.z2six.toomanychests.client.config.TrackerConfigManager;
+import net.z2six.toomanychests.client.gui.widget.AccentButton;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public final class TrackerSettingsScreen extends Screen {
+    private static final int ACCENT = 0xFFFC0553;
+    private static final int WHITE = 0xFFFFFFFF;
+    private static final int PANEL_FILL = 0xE6000000;
+    private static final int PANEL_BORDER = 0xFF1A1A1A;
+    private static final int CONTROL_HEIGHT = 20;
+
+    private final TrackerScreen parent;
+    private StackingMode stackingMode;
+
+    private EditBox highlightDurationBox;
+    private EditBox trackedBlocksBox;
+    private EditBox indicatorColorBox;
+
+    private int panelLeft;
+    private int panelRight;
+    private int panelTop;
+    private int panelBottom;
+
+    public TrackerSettingsScreen(TrackerScreen parent) {
+        super(Component.translatable("screen.toomanychests.settings_title"));
+        this.parent = parent;
+        this.stackingMode = TrackerConfigManager.stackingMode();
+    }
+
+    @Override
+    protected void init() {
+        int panelWidth = Math.min(560, this.width - 40);
+        panelLeft = (this.width - panelWidth) / 2;
+        panelRight = panelLeft + panelWidth;
+        panelTop = 28;
+
+        int innerLeft = panelLeft + 10;
+        int innerWidth = panelWidth - 20;
+        int y = panelTop + 18;
+
+        this.addRenderableWidget(
+                Button.builder(stackingButtonText(), button -> {
+                            stackingMode = stackingMode.next();
+                            button.setMessage(stackingButtonText());
+                        })
+                        .tooltip(Tooltip.create(Component.translatable("screen.toomanychests.tooltip_stacking_mode")))
+                        .bounds(innerLeft, y, innerWidth, CONTROL_HEIGHT)
+                        .build(AccentButton::new)
+        );
+        y += 28;
+
+        this.highlightDurationBox = makeEditBox(
+                innerLeft,
+                y + 10,
+                innerWidth,
+                Component.translatable("screen.toomanychests.highlight_seconds"),
+                Component.translatable("screen.toomanychests.tooltip_highlight_seconds")
+        );
+        this.highlightDurationBox.setFilter(value -> value.isEmpty() || value.matches("\\d+"));
+        this.highlightDurationBox.setValue(Integer.toString(TrackerConfigManager.highlightDurationSeconds()));
+        this.addRenderableWidget(this.highlightDurationBox);
+        y += 40;
+
+        this.trackedBlocksBox = makeEditBox(
+                innerLeft,
+                y + 10,
+                innerWidth,
+                Component.translatable("screen.toomanychests.tracked_blocks"),
+                Component.translatable("screen.toomanychests.tooltip_tracked_blocks")
+        );
+        this.trackedBlocksBox.setValue(String.join(", ", TrackerConfigManager.trackedBlocksList()));
+        this.addRenderableWidget(this.trackedBlocksBox);
+        y += 40;
+
+        this.indicatorColorBox = makeEditBox(
+                innerLeft,
+                y + 10,
+                innerWidth,
+                Component.translatable("screen.toomanychests.indicator_color"),
+                Component.translatable("screen.toomanychests.tooltip_indicator_color")
+        );
+        this.indicatorColorBox.setFilter(value -> value.isEmpty() || value.matches("#?[0-9a-fA-F]{0,6}"));
+        this.indicatorColorBox.setValue(TrackerConfigManager.indicatorColorHex());
+        this.addRenderableWidget(this.indicatorColorBox);
+        y += 50;
+
+        int buttonWidth = (innerWidth - 8) / 2;
+        this.addRenderableWidget(
+                Button.builder(Component.translatable("gui.done"), button -> {
+                            applyChanges();
+                            this.parent.refreshFromSettings();
+                            this.minecraft.setScreen(parent);
+                        })
+                        .tooltip(Tooltip.create(Component.translatable("screen.toomanychests.tooltip_done")))
+                        .bounds(innerLeft, y, buttonWidth, CONTROL_HEIGHT)
+                        .build(AccentButton::new)
+        );
+
+        this.addRenderableWidget(
+                Button.builder(Component.translatable("gui.cancel"), button -> this.minecraft.setScreen(parent))
+                        .tooltip(Tooltip.create(Component.translatable("screen.toomanychests.tooltip_cancel")))
+                        .bounds(innerLeft + buttonWidth + 8, y, buttonWidth, CONTROL_HEIGHT)
+                        .build(AccentButton::new)
+        );
+
+        panelBottom = y + CONTROL_HEIGHT + 12;
+    }
+
+    private EditBox makeEditBox(int x, int y, int width, Component narration, Component tooltip) {
+        EditBox box = new EditBox(this.font, x, y, width, CONTROL_HEIGHT, narration);
+        box.setTextColor(0xFFFFFFFF);
+        box.setTextColorUneditable(0xFF6A6A6A);
+        box.setTooltip(Tooltip.create(tooltip));
+        return box;
+    }
+
+    @Override
+    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        guiGraphics.fill(panelLeft, panelTop, panelRight, panelBottom, PANEL_FILL);
+        guiGraphics.fill(panelLeft - 1, panelTop - 1, panelRight + 1, panelTop, PANEL_BORDER);
+        guiGraphics.fill(panelLeft - 1, panelBottom, panelRight + 1, panelBottom + 1, PANEL_BORDER);
+        guiGraphics.fill(panelLeft - 1, panelTop - 1, panelLeft, panelBottom + 1, PANEL_BORDER);
+        guiGraphics.fill(panelRight, panelTop - 1, panelRight + 1, panelBottom + 1, PANEL_BORDER);
+
+        for (Renderable renderable : this.renderables) {
+            renderable.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
+
+        int innerLeft = panelLeft + 10;
+        int y = panelTop + 6;
+        drawBrandTitle(guiGraphics, (panelLeft + panelRight) / 2, y, " Settings");
+        y += 38;
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.highlight_seconds"), innerLeft, y, 0xFFD7D7D7);
+        y += 40;
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.tracked_blocks"), innerLeft, y, 0xFFD7D7D7);
+        y += 40;
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.indicator_color"), innerLeft, y, 0xFFD7D7D7);
+    }
+
+    private void applyChanges() {
+        int highlightSeconds = parseIntOrDefault(highlightDurationBox.getValue(), TrackerConfigManager.highlightDurationSeconds());
+        List<String> trackedBlocks = Arrays.stream(trackedBlocksBox.getValue().split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .collect(Collectors.toList());
+        String color = indicatorColorBox.getValue().trim();
+        if (!color.isEmpty() && !color.startsWith("#")) {
+            color = "#" + color;
+        }
+        TrackerConfigManager.updateFromScreen(stackingMode, highlightSeconds, trackedBlocks, color);
+    }
+
+    private int parseIntOrDefault(String value, int fallback) {
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private Component stackingButtonText() {
+        return Component.translatable("screen.toomanychests.stacking_mode", stackingMode.label());
+    }
+
+    private void drawBrandTitle(GuiGraphics guiGraphics, int centerX, int y, String suffix) {
+        String prefixLeft = "(";
+        String prefixCore = "TMC";
+        String prefixRight = ") ";
+        String body = "TooManyChests" + suffix;
+        String full = prefixLeft + prefixCore + prefixRight + body;
+
+        int x = centerX - this.font.width(full) / 2;
+        guiGraphics.drawString(this.font, prefixLeft, x, y, WHITE);
+        x += this.font.width(prefixLeft);
+        guiGraphics.drawString(this.font, prefixCore, x, y, ACCENT);
+        x += this.font.width(prefixCore);
+        guiGraphics.drawString(this.font, prefixRight, x, y, WHITE);
+        x += this.font.width(prefixRight);
+        guiGraphics.drawString(this.font, body, x, y, WHITE);
+    }
+}
