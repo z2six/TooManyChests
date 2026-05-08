@@ -1,1 +1,1 @@
-WIP
+For a full overview, please visit: https://z2six.dev/en/mods/feathered-friend

@@ -73,6 +73,10 @@ public final class TrackerConfigManager {
         return data.highlightDurationSeconds * 20;
     }
 
+    public static synchronized int trackingRangeBlocks() {
+        return data.trackingRangeBlocks;
+    }
+
     public static synchronized String indicatorCrosshairColorHex() {
         return data.indicatorCrosshairColorHex;
     }
@@ -115,6 +119,7 @@ public final class TrackerConfigManager {
     public static synchronized void updateFromScreen(
             StackingMode stackingMode,
             int highlightDurationSeconds,
+            int trackingRangeBlocks,
             List<String> trackedBlocks,
             String indicatorCrosshairColorHex,
             String indicatorLabelColorHex,
@@ -122,6 +127,7 @@ public final class TrackerConfigManager {
     ) {
         data.stackingMode = stackingMode;
         data.highlightDurationSeconds = clampHighlightDuration(highlightDurationSeconds);
+        data.trackingRangeBlocks = clampTrackingRange(trackingRangeBlocks);
         data.trackedBlocks = sanitizeBlockList(trackedBlocks);
         data.indicatorCrosshairColorHex = sanitizeColorHex(indicatorCrosshairColorHex);
         data.indicatorLabelColorHex = sanitizeColorHex(indicatorLabelColorHex);
@@ -178,17 +184,22 @@ public final class TrackerConfigManager {
         ConfigData sanitized = new ConfigData();
         sanitized.stackingMode = raw.stackingMode == null ? StackingMode.ALL_IDENTICAL : raw.stackingMode;
         sanitized.highlightDurationSeconds = clampHighlightDuration(raw.highlightDurationSeconds);
+        sanitized.trackingRangeBlocks = clampTrackingRange(raw.trackingRangeBlocks);
         sanitized.trackedBlocks = sanitizeBlockList(raw.trackedBlocks);
         String legacyIndicatorColor = sanitizeColorHex(raw.indicatorColorHex);
         sanitized.indicatorColorHex = legacyIndicatorColor;
         sanitized.indicatorCrosshairColorHex = sanitizeColorHexWithFallback(raw.indicatorCrosshairColorHex, legacyIndicatorColor);
         sanitized.indicatorLabelColorHex = sanitizeColorHexWithFallback(raw.indicatorLabelColorHex, legacyIndicatorColor);
-        sanitized.chestOutlineColorHex = sanitizeColorHexWithFallback(raw.chestOutlineColorHex, "#ffffff");
+        sanitized.chestOutlineColorHex = sanitizeColorHexWithFallback(raw.chestOutlineColorHex, legacyIndicatorColor);
         return sanitized;
     }
 
     private static int clampHighlightDuration(int seconds) {
         return Math.max(1, Math.min(300, seconds));
+    }
+
+    private static int clampTrackingRange(int blocks) {
+        return Math.max(1, Math.min(30000, blocks));
     }
 
     private static List<String> sanitizeBlockList(List<String> blockIds) {
@@ -241,11 +252,12 @@ public final class TrackerConfigManager {
     private static final class ConfigData {
         private StackingMode stackingMode = StackingMode.ALL_IDENTICAL;
         private int highlightDurationSeconds = 12;
+        private int trackingRangeBlocks = 500;
         // Legacy color kept for backward compatibility with older config files.
         private String indicatorColorHex = "#fc0553";
         private String indicatorCrosshairColorHex = "#fc0553";
         private String indicatorLabelColorHex = "#fc0553";
-        private String chestOutlineColorHex = "#ffffff";
+        private String chestOutlineColorHex = "#fc0553";
         private List<String> trackedBlocks = new ArrayList<>(List.of(
                 "minecraft:chest",
                 "minecraft:barrel",

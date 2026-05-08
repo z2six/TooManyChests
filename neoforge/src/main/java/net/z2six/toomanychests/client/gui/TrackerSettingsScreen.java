@@ -27,6 +27,7 @@ public final class TrackerSettingsScreen extends Screen {
     private StackingMode stackingMode;
 
     private EditBox highlightDurationBox;
+    private EditBox trackingRangeBox;
     private EditBox trackedBlocksBox;
     private EditBox indicatorCrosshairColorBox;
     private EditBox indicatorLabelColorBox;
@@ -77,6 +78,18 @@ public final class TrackerSettingsScreen extends Screen {
         this.addRenderableWidget(this.highlightDurationBox);
         y += 40;
 
+        this.trackingRangeBox = makeEditBox(
+                innerLeft,
+                y + 10,
+                innerWidth,
+                Component.translatable("screen.toomanychests.tracking_range"),
+                Component.translatable("screen.toomanychests.tooltip_tracking_range")
+        );
+        this.trackingRangeBox.setFilter(value -> value.isEmpty() || value.matches("\\d+"));
+        this.trackingRangeBox.setValue(Integer.toString(TrackerConfigManager.trackingRangeBlocks()));
+        this.addRenderableWidget(this.trackingRangeBox);
+        y += 40;
+
         this.trackedBlocksBox = makeEditBox(
                 innerLeft,
                 y + 10,
@@ -84,6 +97,7 @@ public final class TrackerSettingsScreen extends Screen {
                 Component.translatable("screen.toomanychests.tracked_blocks"),
                 Component.translatable("screen.toomanychests.tooltip_tracked_blocks")
         );
+        this.trackedBlocksBox.setMaxLength(512);
         this.trackedBlocksBox.setValue(String.join(", ", TrackerConfigManager.trackedBlocksList()));
         this.addRenderableWidget(this.trackedBlocksBox);
         y += 40;
@@ -173,6 +187,8 @@ public final class TrackerSettingsScreen extends Screen {
         y += 38;
         guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.highlight_seconds"), innerLeft, y, 0xFFD7D7D7);
         y += 40;
+        guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.tracking_range"), innerLeft, y, 0xFFD7D7D7);
+        y += 40;
         guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.tracked_blocks"), innerLeft, y, 0xFFD7D7D7);
         y += 40;
         guiGraphics.drawString(this.font, Component.translatable("screen.toomanychests.indicator_crosshair_color"), innerLeft, y, 0xFFD7D7D7);
@@ -184,6 +200,7 @@ public final class TrackerSettingsScreen extends Screen {
 
     private void applyChanges() {
         int highlightSeconds = parseIntOrDefault(highlightDurationBox.getValue(), TrackerConfigManager.highlightDurationSeconds());
+        int trackingRange = parseIntOrDefault(trackingRangeBox.getValue(), TrackerConfigManager.trackingRangeBlocks());
         List<String> trackedBlocks = Arrays.stream(trackedBlocksBox.getValue().split(","))
                 .map(String::trim)
                 .filter(value -> !value.isEmpty())
@@ -191,7 +208,7 @@ public final class TrackerSettingsScreen extends Screen {
         String crosshairColor = normalizeHexColor(indicatorCrosshairColorBox.getValue());
         String labelColor = normalizeHexColor(indicatorLabelColorBox.getValue());
         String chestOutlineColor = normalizeHexColor(chestOutlineColorBox.getValue());
-        TrackerConfigManager.updateFromScreen(stackingMode, highlightSeconds, trackedBlocks, crosshairColor, labelColor, chestOutlineColor);
+        TrackerConfigManager.updateFromScreen(stackingMode, highlightSeconds, trackingRange, trackedBlocks, crosshairColor, labelColor, chestOutlineColor);
     }
 
     private int parseIntOrDefault(String value, int fallback) {
