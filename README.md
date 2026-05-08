@@ -1,1 +1,1 @@
-For a full overview, please visit: https://z2six.dev/en/mods/feathered-friend
+For a full overview, please visit: https://z2six.dev/en/mods/too-many-chests
