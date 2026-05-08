@@ -92,7 +92,7 @@ public final class TooManyChestsClient {
     }
 
     private static void onRenderGuiPost(RenderGuiEvent.Post event) {
-        MarkerHudRenderer.render(event, HIGHLIGHT_MANAGER);
+        MarkerHudRenderer.render(event);
     }
 
     private static void onClientLogout(ClientPlayerNetworkEvent.LoggingOut event) {

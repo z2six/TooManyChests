@@ -1,21 +1,11 @@
 package net.z2six.toomanychests.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Vector3f;
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiComponent;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.ChestBlock;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.ChestType;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderGuiEvent;
-import net.z2six.toomanychests.client.config.TrackerConfigManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,95 +16,55 @@ public final class MarkerHudRenderer {
     private static final int LABEL_PADDING = 3;
     private static final int SCREEN_PADDING = 2;
     private static final int LABEL_STEP = 14;
+    private static List<ProjectedMarker> projectedMarkers = List.of();
 
     private MarkerHudRenderer() {
     }
 
-    public static void render(RenderGuiEvent.Post event, HighlightManager highlightManager) {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null || minecraft.player == null) {
-            return;
-        }
+    public static void updateProjectedMarkers(List<ProjectedMarker> markers) {
+        projectedMarkers = List.copyOf(markers);
+    }
 
-        List<BlockPos> positions = highlightManager.activeInDimension(minecraft.level.dimension().location().toString());
-        if (positions.isEmpty()) {
+    public static void clearProjectedMarkers() {
+        projectedMarkers = List.of();
+    }
+
+    public static void render(RenderGuiEvent.Post event) {
+        if (projectedMarkers.isEmpty()) {
             return;
         }
 
         PoseStack poseStack = event.getPoseStack();
         int screenWidth = event.getWindow().getGuiScaledWidth();
         int screenHeight = event.getWindow().getGuiScaledHeight();
-        double centerX = screenWidth / 2.0D;
-        double centerY = screenHeight / 2.0D;
-
-        Camera camera = minecraft.gameRenderer.getMainCamera();
-        Vec3 cameraPos = camera.getPosition();
-        Vector3f lookVector = camera.getLookVector();
-        Vector3f upVector = camera.getUpVector();
-        Vector3f leftVector = camera.getLeftVector();
-        Vec3 forward = new Vec3(lookVector.x(), lookVector.y(), lookVector.z());
-        Vec3 up = new Vec3(upVector.x(), upVector.y(), upVector.z());
-        Vec3 right = new Vec3(-leftVector.x(), -leftVector.y(), -leftVector.z());
-        double focal = (screenHeight / 2.0D) / Math.tan(Math.toRadians(minecraft.options.fov().get()) / 2.0D);
-        int markerColor = TrackerConfigManager.indicatorCrosshairColorArgb(255);
-        int textColor = TrackerConfigManager.indicatorLabelColorArgb(255);
-        double ringRadius = Math.max(40.0D, Math.min(screenWidth, screenHeight) * 0.5D - EDGE_MARGIN);
         List<Rect> occupiedLabels = new ArrayList<>();
 
-        for (BlockPos blockPos : positions) {
-            Vec3 target = markerAnchor(minecraft.level, blockPos);
-            Vec3 delta = target.subtract(cameraPos);
-            double distance = delta.length();
-            if (distance < 0.01D) {
-                continue;
-            }
-
-            double camX = delta.dot(right);
-            double camY = delta.dot(up);
-            double camZ = delta.dot(forward);
-            boolean behind = camZ <= 0.01D;
-            double projectedDepth = behind ? Math.max(0.01D, -camZ) : camZ;
-
-            double projectedX = centerX + (camX / projectedDepth) * focal;
-            double projectedY = centerY - (camY / projectedDepth) * focal;
-            boolean onScreen = !behind
-                    && projectedX >= EDGE_MARGIN
-                    && projectedX <= screenWidth - EDGE_MARGIN
-                    && projectedY >= EDGE_MARGIN
-                    && projectedY <= screenHeight - EDGE_MARGIN;
-
-            String distanceText = formatDistance(distance);
-            if (onScreen) {
-                double dirX = projectedX - centerX;
-                double dirY = projectedY - centerY;
+        for (ProjectedMarker marker : projectedMarkers) {
+            String distanceText = formatDistance(marker.distance());
+            if (marker.onScreen(screenWidth, screenHeight)) {
                 drawOnScreenMarker(
                         poseStack,
-                        (int) Math.round(projectedX),
-                        (int) Math.round(projectedY),
+                        (int) Math.round(marker.screenX()),
+                        (int) Math.round(marker.screenY()),
                         distanceText,
-                        markerColor,
-                        textColor,
+                        marker.markerColor(),
+                        marker.textColor(),
                         screenWidth,
                         screenHeight,
-                        dirX,
-                        dirY,
+                        marker.screenX() - screenWidth / 2.0D,
+                        marker.screenY() - screenHeight / 2.0D,
                         occupiedLabels
                 );
             } else {
-                double offscreenDirX = behind ? camX : (projectedX - centerX);
-                double offscreenDirY = behind ? -camY : (projectedY - centerY);
                 drawOffScreenIndicator(
                         poseStack,
-                        offscreenDirX,
-                        offscreenDirY,
-                        centerX,
-                        centerY,
-                        ringRadius,
+                        marker.directionX(),
+                        marker.directionY(),
                         screenWidth,
                         screenHeight,
                         distanceText,
-                        behind,
-                        textColor,
+                        marker.behind(),
+                        marker.textColor(),
                         occupiedLabels
                 );
             }
@@ -157,9 +107,6 @@ public final class MarkerHudRenderer {
             PoseStack poseStack,
             double directionX,
             double directionY,
-            double centerX,
-            double centerY,
-            double ringRadius,
             int screenWidth,
             int screenHeight,
             String distanceText,
@@ -174,8 +121,9 @@ public final class MarkerHudRenderer {
         double length = Math.sqrt(directionX * directionX + directionY * directionY);
         double normX = directionX / length;
         double normY = directionY / length;
-        int x = (int) Math.round(centerX + normX * ringRadius);
-        int y = (int) Math.round(centerY + normY * ringRadius);
+        double ringRadius = Math.max(40.0D, Math.min(screenWidth, screenHeight) * 0.5D - EDGE_MARGIN);
+        int x = (int) Math.round(screenWidth / 2.0D + normX * ringRadius);
+        int y = (int) Math.round(screenHeight / 2.0D + normY * ringRadius);
         String arrow = directionalArrow(normX, normY);
         String label = behind ? arrow + " " + distanceText + " (behind)" : arrow + " " + distanceText;
 
@@ -235,11 +183,9 @@ public final class MarkerHudRenderer {
         if (font.width(finalText) > maxTextWidth) {
             String ellipsis = "...";
             int ellipsisWidth = font.width(ellipsis);
-            if (ellipsisWidth >= maxTextWidth) {
-                finalText = font.plainSubstrByWidth(finalText, maxTextWidth);
-            } else {
-                finalText = font.plainSubstrByWidth(finalText, maxTextWidth - ellipsisWidth) + ellipsis;
-            }
+            finalText = ellipsisWidth >= maxTextWidth
+                    ? font.plainSubstrByWidth(finalText, maxTextWidth)
+                    : font.plainSubstrByWidth(finalText, maxTextWidth - ellipsisWidth) + ellipsis;
         }
 
         int textWidth = font.width(finalText);
@@ -296,34 +242,6 @@ public final class MarkerHudRenderer {
         font.draw(poseStack, finalText, chosenX, chosenY, textColor);
     }
 
-    private static Vec3 markerAnchor(Level level, BlockPos pos) {
-        BlockState state = level.getBlockState(pos);
-        if (!(state.getBlock() instanceof ChestBlock)) {
-            return Vec3.atCenterOf(pos).add(0.0D, 0.8D, 0.0D);
-        }
-
-        ChestType chestType = state.getValue(ChestBlock.TYPE);
-        if (chestType == ChestType.SINGLE) {
-            return Vec3.atCenterOf(pos).add(0.0D, 0.8D, 0.0D);
-        }
-
-        Direction facing = state.getValue(ChestBlock.FACING);
-        Direction offset = chestType == ChestType.LEFT ? facing.getClockWise() : facing.getCounterClockWise();
-        BlockPos otherPos = pos.relative(offset);
-        BlockState other = level.getBlockState(otherPos);
-        if (other.getBlock() != state.getBlock()
-                || other.getValue(ChestBlock.TYPE) == ChestType.SINGLE
-                || other.getValue(ChestBlock.FACING) != facing
-                || other.getValue(ChestBlock.TYPE) == chestType) {
-            return Vec3.atCenterOf(pos).add(0.0D, 0.8D, 0.0D);
-        }
-
-        double centerX = (Math.min(pos.getX(), otherPos.getX()) + Math.max(pos.getX(), otherPos.getX()) + 1.0D) / 2.0D;
-        double centerZ = (Math.min(pos.getZ(), otherPos.getZ()) + Math.max(pos.getZ(), otherPos.getZ()) + 1.0D) / 2.0D;
-        double centerY = pos.getY() + 0.8D;
-        return new Vec3(centerX, centerY, centerZ);
-    }
-
     private static boolean intersectsAny(Rect rect, List<Rect> occupied) {
         for (Rect other : occupied) {
             if (rect.left < other.right && rect.right > other.left && rect.top < other.bottom && rect.bottom > other.top) {
@@ -343,6 +261,25 @@ public final class MarkerHudRenderer {
 
     private static Rect buildRect(int textX, int textY, int textWidth, int lineHeight) {
         return new Rect(textX - LABEL_PADDING, textY - 2, textX + textWidth + LABEL_PADDING, textY + lineHeight + 1);
+    }
+
+    public record ProjectedMarker(
+            double screenX,
+            double screenY,
+            double directionX,
+            double directionY,
+            double distance,
+            boolean behind,
+            int markerColor,
+            int textColor
+    ) {
+        private boolean onScreen(int screenWidth, int screenHeight) {
+            return !behind
+                    && screenX >= EDGE_MARGIN
+                    && screenX <= screenWidth - EDGE_MARGIN
+                    && screenY >= EDGE_MARGIN
+                    && screenY <= screenHeight - EDGE_MARGIN;
+        }
     }
 
     private record Rect(int left, int top, int right, int bottom) {
