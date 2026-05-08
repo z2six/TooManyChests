@@ -70,6 +70,7 @@ public final class MarkerRenderer {
         RenderSystem.disableDepthTest();
         RenderSystem.lineWidth(2.0F);
 
+        Matrix4f markerProjectionView = poseStack.last().pose().copy();
         poseStack.pushPose();
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         VertexConsumer lineConsumer = bufferSource.getBuffer(RenderType.lines());
@@ -80,7 +81,7 @@ public final class MarkerRenderer {
             projectedMarkers.add(projectMarker(
                     markerCenter,
                     cameraPos,
-                    poseStack.last().pose(),
+                    markerProjectionView,
                     event.getProjectionMatrix(),
                     screenWidth,
                     screenHeight,
