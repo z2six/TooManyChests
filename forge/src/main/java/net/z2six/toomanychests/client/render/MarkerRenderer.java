@@ -17,7 +17,10 @@ import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.z2six.toomanychests.client.config.TrackerConfigManager;
+import org.joml.Matrix4f;
+import org.joml.Vector4f;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class MarkerRenderer {
@@ -30,18 +33,28 @@ public final class MarkerRenderer {
         }
 
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level == null) {
+        if (minecraft.level == null || minecraft.player == null) {
             return;
         }
 
-        List<BlockPos> positions = highlightManager.activeInDimension(minecraft.level.dimension().location().toString());
+        List<BlockPos> positions = highlightManager.activeInDimensionWithinRange(
+                minecraft.level.dimension().location().toString(),
+                minecraft.player.position(),
+                TrackerConfigManager.trackingRangeBlocks()
+        );
         if (positions.isEmpty()) {
+            MarkerHudRenderer.clearProjectedMarkers();
             return;
         }
 
         PoseStack poseStack = event.getPoseStack();
         Vec3 cameraPos = event.getCamera().getPosition();
         MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
+        int screenWidth = minecraft.getWindow().getGuiScaledWidth();
+        int screenHeight = minecraft.getWindow().getGuiScaledHeight();
+        int markerColor = TrackerConfigManager.indicatorCrosshairColorArgb(255);
+        int textColor = TrackerConfigManager.indicatorLabelColorArgb(255);
+        List<MarkerHudRenderer.ProjectedMarker> projectedMarkers = new ArrayList<>();
 
         float animation = 0.5F + 0.5F * Mth.sin((minecraft.level.getGameTime() + event.getPartialTick()) * 0.2F);
         double expand = 0.04D + animation * 0.10D;
@@ -61,9 +74,21 @@ public final class MarkerRenderer {
         poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         VertexConsumer lineConsumer = bufferSource.getBuffer(RenderType.lines());
         for (BlockPos blockPos : positions) {
-            double distance = Math.sqrt(blockPos.distToCenterSqr(cameraPos.x, cameraPos.y, cameraPos.z));
-            double scaledExpand = Math.min(8.0D, Math.max(expand, distance * 0.0025D));
-            drawMarker(minecraft.level, poseStack, lineConsumer, blockPos, scaledExpand, red, green, blue, outerAlpha, innerAlpha);
+            double blockDistance = Math.sqrt(blockPos.distToCenterSqr(cameraPos.x, cameraPos.y, cameraPos.z));
+            double scaledExpand = Math.min(8.0D, Math.max(expand, blockDistance * 0.0025D));
+            Vec3 markerCenter = drawMarker(minecraft.level, poseStack, lineConsumer, blockPos, scaledExpand, red, green, blue, outerAlpha, innerAlpha);
+            double markerDistance = markerCenter.distanceTo(cameraPos);
+            projectedMarkers.add(projectMarker(
+                    markerCenter,
+                    cameraPos,
+                    poseStack.last().pose(),
+                    event.getProjectionMatrix(),
+                    screenWidth,
+                    screenHeight,
+                    markerDistance,
+                    markerColor,
+                    textColor
+            ));
         }
         poseStack.popPose();
 
@@ -72,9 +97,10 @@ public final class MarkerRenderer {
 
         RenderSystem.enableDepthTest();
         RenderSystem.disableBlend();
+        MarkerHudRenderer.updateProjectedMarkers(projectedMarkers);
     }
 
-    private static void drawMarker(
+    private static Vec3 drawMarker(
             Level level,
             PoseStack poseStack,
             VertexConsumer lineConsumer,
@@ -111,6 +137,73 @@ public final class MarkerRenderer {
                 innerAlpha
         );
 
+        Vec3 center = markerCenter(bounds, pos.getY());
+        drawExactCenterMarker(poseStack, lineConsumer, center, red, green, blue, outerAlpha);
+        return center;
+    }
+
+    private static void drawExactCenterMarker(
+            PoseStack poseStack,
+            VertexConsumer lineConsumer,
+            Vec3 center,
+            float red,
+            float green,
+            float blue,
+            float alpha
+    ) {
+        double halfSize = 0.30D;
+        LevelRenderer.renderLineBox(
+                poseStack,
+                lineConsumer,
+                center.x - halfSize,
+                center.y - halfSize,
+                center.z - halfSize,
+                center.x + halfSize,
+                center.y + halfSize,
+                center.z + halfSize,
+                red,
+                green,
+                blue,
+                alpha
+        );
+    }
+
+    private static Vec3 markerCenter(Bounds bounds, int blockY) {
+        return new Vec3(
+                (bounds.minX() + bounds.maxX()) * 0.5D,
+                blockY + 0.5D,
+                (bounds.minZ() + bounds.maxZ()) * 0.5D
+        );
+    }
+
+    private static MarkerHudRenderer.ProjectedMarker projectMarker(
+            Vec3 worldPos,
+            Vec3 cameraPos,
+            Matrix4f modelViewMatrix,
+            Matrix4f projectionMatrix,
+            int screenWidth,
+            int screenHeight,
+            double distance,
+            int markerColor,
+            int textColor
+    ) {
+        Vector4f clip = new Vector4f(
+                (float) (worldPos.x - cameraPos.x),
+                (float) (worldPos.y - cameraPos.y),
+                (float) (worldPos.z - cameraPos.z),
+                1.0F
+        );
+        clip.mul(modelViewMatrix);
+        clip.mul(projectionMatrix);
+
+        boolean behind = clip.w() <= 0.0F;
+        double ndcX = behind ? -clip.x() : clip.x() / clip.w();
+        double ndcY = behind ? -clip.y() : clip.y() / clip.w();
+        double screenX = (ndcX * 0.5D + 0.5D) * screenWidth;
+        double screenY = (0.5D - ndcY * 0.5D) * screenHeight;
+        double directionX = screenX - screenWidth / 2.0D;
+        double directionY = screenY - screenHeight / 2.0D;
+        return new MarkerHudRenderer.ProjectedMarker(screenX, screenY, directionX, directionY, distance, behind, markerColor, textColor);
     }
 
     private static Bounds resolveBounds(Level level, BlockPos pos) {

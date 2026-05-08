@@ -1,6 +1,7 @@
 package net.z2six.toomanychests.client.render;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -31,6 +32,18 @@ public final class HighlightManager {
         List<BlockPos> positions = new ArrayList<>();
         for (Marker marker : activeMarkers) {
             if (marker.dimensionId.equals(dimensionId)) {
+                positions.add(marker.blockPos);
+            }
+        }
+        return positions;
+    }
+
+    public synchronized List<BlockPos> activeInDimensionWithinRange(String dimensionId, Vec3 center, int rangeBlocks) {
+        double maxDistanceSqr = (double) rangeBlocks * rangeBlocks;
+        List<BlockPos> positions = new ArrayList<>();
+        for (Marker marker : activeMarkers) {
+            if (marker.dimensionId.equals(dimensionId)
+                    && marker.blockPos.distToCenterSqr(center.x, center.y, center.z) <= maxDistanceSqr) {
                 positions.add(marker.blockPos);
             }
         }

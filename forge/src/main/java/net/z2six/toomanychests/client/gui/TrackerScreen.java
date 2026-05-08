@@ -13,6 +13,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.z2six.toomanychests.client.config.TrackerConfigManager;
 import net.z2six.toomanychests.client.data.AggregatedItemEntry;
 import net.z2six.toomanychests.client.data.ContainerRecord;
@@ -397,8 +398,16 @@ public final class TrackerScreen extends Screen {
         String dimensionId = this.minecraft.level.dimension().location().toString();
         Map<String, Integer> byDimension = containerStore.countContainersByDimension(entry.containerIds());
         String otherDimensions = buildOtherDimensionsSummary(byDimension, dimensionId);
-        List<BlockPos> positions = containerStore.resolvePositions(entry.containerIds(), dimensionId);
+        List<BlockPos> dimensionPositions = containerStore.resolvePositions(entry.containerIds(), dimensionId);
+        List<BlockPos> positions = filterPositionsByTrackingRange(dimensionPositions, this.minecraft.player.position(), TrackerConfigManager.trackingRangeBlocks());
         if (positions.isEmpty()) {
+            if (!dimensionPositions.isEmpty()) {
+                this.minecraft.player.displayClientMessage(
+                        Component.translatable("screen.toomanychests.no_positions_in_range", TrackerConfigManager.trackingRangeBlocks()).withStyle(ChatFormatting.YELLOW),
+                        true
+                );
+                return;
+            }
             if (!otherDimensions.isEmpty()) {
                 this.minecraft.player.displayClientMessage(
                         Component.translatable("screen.toomanychests.only_other_dimensions", otherDimensions).withStyle(ChatFormatting.YELLOW),
@@ -415,6 +424,17 @@ public final class TrackerScreen extends Screen {
             message = message.copy().append(Component.translatable("screen.toomanychests.other_dimensions", otherDimensions).withStyle(ChatFormatting.GRAY));
         }
         this.minecraft.player.displayClientMessage(message, true);
+    }
+
+    private List<BlockPos> filterPositionsByTrackingRange(List<BlockPos> positions, Vec3 playerPosition, int rangeBlocks) {
+        double maxDistanceSqr = (double) rangeBlocks * rangeBlocks;
+        List<BlockPos> inRange = new ArrayList<>();
+        for (BlockPos pos : positions) {
+            if (pos.distToCenterSqr(playerPosition.x, playerPosition.y, playerPosition.z) <= maxDistanceSqr) {
+                inRange.add(pos);
+            }
+        }
+        return inRange;
     }
 
     private String buildOtherDimensionsSummary(Map<String, Integer> byDimension, String currentDimensionId) {
@@ -519,9 +539,7 @@ public final class TrackerScreen extends Screen {
     }
 
     private int totalGridRows() {
-        int columns = gridColumns();
-        int total = filteredEntries.size();
-        return Math.max(1, (total + columns - 1) / columns);
+        return Math.max(1, (filteredEntries.size() + gridColumns() - 1) / gridColumns());
     }
 
     private int maxFirstVisibleGridRow() {
